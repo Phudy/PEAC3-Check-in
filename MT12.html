@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PEAC3 Check-in</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&family=Prompt:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        kanit: ['Kanit', 'sans-serif'],
+                        prompt: ['Prompt', 'sans-serif'],
+                        sans: ['Prompt', 'sans-serif'],
+                    },
+                    colors: {
+                        pea: {
+                            purple: '#7A2F8D',
+                            dark: '#4A148C',
+                            gold: '#FDB913',
+                            light: '#F3E5F5'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Force Full Screen & No Scroll Globally */
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Prompt', sans-serif;
+            background-color: #f1f5f9;
+        }
+
+        #root {
+            height: 100%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Hide Scrollbar */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Custom Scrollbar for Editor Panel Only */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E1BEE7; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #CE93D8; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+        
+        /* Input styling adjustments */
+        input[type="time"]::-webkit-calendar-picker-indicator,
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(48%) sepia(13%) saturate(3207%) hue-rotate(246deg) brightness(95%) contrast(80%);
+            cursor: pointer;
+        }
+    </style>
+
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-100">
+    <!-- Loading Indicator -->
+    <div id="root">
+        <div class="h-full w-full flex items-center justify-center text-slate-400 gap-2">
+            <svg class="animate-spin h-5 w-5 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            กำลังโหลดระบบ...
+        </div>
+    </div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect, useMemo, useLayoutEffect } = React;
+
+        // --- Icon Components ---
+        const Icon = ({ children, size = 24, className = "", ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
+        );
+        const Check = (props) => <Icon {...props}><polyline points="20 6 9 17 4 12" /></Icon>;
+        const Plus = (props) => <Icon {...props}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></Icon>;
+        const Trash2 = (props) => <Icon {...props}><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></Icon>;
+        const Maximize = (props) => <Icon {...props}><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></Icon>;
+        const Settings = (props) => <Icon {...props}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></Icon>;
+        const Upload = (props) => <Icon {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></Icon>;
+        const MapPin = (props) => <Icon {...props}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></Icon>;
+        const Calendar = (props) => <Icon {...props}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></Icon>;
+        const Clock = (props) => <Icon {...props}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Icon>;
+        const Users = (props) => <Icon {...props}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></Icon>;
+        const QrCode = (props) => <Icon {...props}><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></Icon>;
+        const FolderOpen = (props) => <Icon {...props}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></Icon>;
+        const Database = (props) => <Icon {...props}><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></Icon>;
+        const ChevronRight = (props) => <Icon {...props}><polyline points="9 18 15 12 9 6" /></Icon>;
+        const LayoutTemplate = (props) => <Icon {...props}><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></Icon>;
+        const X = (props) => <Icon {...props}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></Icon>;
+        const Edit3 = (props) => <Icon {...props}><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></Icon>;
+        const List = (props) => <Icon {...props}><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></Icon>;
+
+        // --- ฐานข้อมูลหลัก (Master Data) ---
+        const MASTER_DATA = [
+            {
+                id: 'g1',
+                name: 'กฟจ.นครปฐม',
+                children: [
+                { id: 'c1-1', name: 'กฟส.นครปฐม', checked: false },
+                { id: 'c1-2', name: 'กฟส.ดอนตูม', checked: false },
+                { id: 'c1-3', name: 'กฟส.สามพราน', checked: false },
+                { id: 'c1-4', name: 'กฟส.กำแพงแสน', checked: false },
+                { id: 'c1-5', name: 'กฟส.นครชัยศรี', checked: false },
+                { id: 'c1-6', name: 'กฟส.บางเลน', checked: false },
+                { id: 'c1-7', name: 'กฟส.พุทธมณฑล', checked: false },
+                ]
+            },
+            {
+                id: 'g2',
+                name: 'กฟจ.สุพรรณบุรี',
+                children: [
+                { id: 'c2-1', name: 'กฟส.สุพรรณบุรี', checked: false },
+                { id: 'c2-2', name: 'กฟส.บางปลาม้า', checked: false },
+                { id: 'c2-3', name: 'กฟส.ดอนเจดีย์', checked: false },
+                { id: 'c2-4', name: 'กฟส.ศรีประจันต์', checked: false },
+                { id: 'c2-5', name: 'กฟส.สามชุก', checked: false },
+                { id: 'c2-6', name: 'กฟส.อู่ทอง', checked: false },
+                { id: 'c2-7', name: 'กฟส.สองพี่น้อง', checked: false },
+                { id: 'c2-8', name: 'กฟส.เดิมบางนางบวช', checked: false },
+                { id: 'c2-9', name: 'กฟส.ด่านช้าง', checked: false },
+                { id: 'c2-10', name: 'กฟส.หนองหญ้าไซ', checked: false },
+                ]
+            },
+            {
+                id: 'g3',
+                name: 'กฟจ.กาญจนบุรี',
+                children: [
+                { id: 'c3-1', name: 'กฟส.กาญจนบุรี', checked: false },
+                { id: 'c3-2', name: 'กฟส.ท่าม่วง', checked: false },
+                { id: 'c3-3', name: 'กฟส.พนมทวน', checked: false },
+                { id: 'c3-4', name: 'กฟส.ไทรโยค', checked: false },
+                { id: 'c3-5', name: 'กฟส.ทองผาภูมิ', checked: false },
+                { id: 'c3-6', name: 'กฟส.ด่านมะขามเตี้ย', checked: false },
+                { id: 'c3-7', name: 'กฟส.ลาดหญ้า', checked: false },
+                { id: 'c3-8', name: 'กฟส.บ่อพลอย', checked: false },
+                { id: 'c3-9', name: 'กฟส.เลาขวัญ', checked: false },
+                { id: 'c3-10', name: 'กฟส.ท่ามะกา', checked: false },
+                { id: 'c3-11', name: 'กฟส.ท่าเรือ', checked: false },
+                ]
+            },
+            {
+                id: 'g4',
+                name: 'กฟจ.สมุทรสาคร',
+                children: [
+                { id: 'c4-1', name: 'กฟส.สมุทรสาคร', checked: false },
+                { id: 'c4-2', name: 'กฟส.สมุทรสาคร 2(บพว)', checked: false },
+                { id: 'c4-3', name: 'กฟส.โคกขาม', checked: false },
+                { id: 'c4-4', name: 'กฟส.บางน้ำจืด', checked: false },
+                { id: 'c4-5', name: 'กฟส.กระทุ่มแบน', checked: false },
+                { id: 'c4-6', name: 'กฟส.อ้อมน้อย', checked: false },
+                ]
+            },
+            {
+                id: 'g5',
+                name: 'หน่วยงานใน กฟก.3',
+                children: [
+                { id: 'c5-1', name: 'กบล.', checked: false },
+                { id: 'c5-2', name: 'กวว.', checked: false },
+                { id: 'c5-3', name: 'กรย.', checked: false },
+                { id: 'c5-4', name: 'กปบ.', checked: false },
+                { id: 'c5-5', name: 'กบษ.', checked: false },
+                { id: 'c5-6', name: 'กสฟ.', checked: false },
+                { id: 'c5-7', name: 'กบฟ.', checked: false },
+                { id: 'c5-8', name: 'กบพ.', checked: false },
+                { id: 'c5-9', name: 'กดส.', checked: false },
+                { id: 'c5-10', name: 'กสข.', checked: false },
+                ]
+            }
+        ];
+
+        const generateTimeOptions = () => {
+            const options = [];
+            let hour = 8;
+            let minute = 30;
+            while (hour < 16 || (hour === 16 && minute <= 30)) {
+                const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                options.push(timeString);
+                minute += 30;
+                if (minute === 60) {
+                    minute = 0;
+                    hour++;
+                }
+            }
+            return options;
+        };
+
+        const TIME_OPTIONS = generateTimeOptions();
+
+        // --- Auto Scale Text Component ---
+        const FitText = ({ text, className, style }) => {
+            const containerRef = useRef(null);
+            const textRef = useRef(null);
+            const [scale, setScale] = useState(1);
+
+            useLayoutEffect(() => {
+                const resizeText = () => {
+                    if (containerRef.current && textRef.current) {
+                        textRef.current.style.transform = 'none';
+                        const containerWidth = containerRef.current.offsetWidth;
+                        const textWidth = textRef.current.scrollWidth;
+                        if (textWidth > containerWidth) {
+                            const newScale = containerWidth / textWidth;
+                            setScale(newScale);
+                        } else {
+                            setScale(1);
+                        }
+                    }
+                };
+                resizeText();
+                window.addEventListener('resize', resizeText);
+                return () => window.removeEventListener('resize', resizeText);
+            }, [text]);
+
+            return (
+                <div ref={containerRef} className="w-full overflow-hidden flex items-center" style={style}>
+                    <span 
+                        ref={textRef} 
+                        className={`${className} whitespace-nowrap origin-left transition-transform duration-200`}
+                        style={{ transform: `scale(${scale})`, display: 'inline-block' }}
+                    >
+                        {text || <span className="opacity-40 italic">หัวข้อการประชุม</span>}
+                    </span>
+                </div>
+            );
+        };
+
+        // --- Scalable Container (Strict Auto Fit) ---
+        const ScalableContainer = ({ children, isPresenting }) => {
+            const containerRef = useRef(null);
+            const contentRef = useRef(null);
+            const [scale, setScale] = useState(1);
+
+            useLayoutEffect(() => {
+                const updateScale = () => {
+                    requestAnimationFrame(() => {
+                        if (containerRef.current && contentRef.current) {
+                            const parent = containerRef.current;
+                            const availableWidth = parent.clientWidth;
+                            const availableHeight = parent.clientHeight;
+                            
+                            // Measure actual content height
+                            const contentWidth = 1920; 
+                            const contentHeight = contentRef.current.scrollHeight; 
+                            const targetHeight = Math.max(1080, contentHeight);
+
+                            const margin = isPresenting ? 0 : 20;
+                            
+                            const scaleX = (availableWidth - margin) / contentWidth;
+                            const scaleY = (availableHeight - margin) / targetHeight;
+                            
+                            let newScale = Math.min(scaleX, scaleY);
+                            
+                            if (newScale <= 0 || !isFinite(newScale)) newScale = 1;
+                            
+                            setScale(newScale);
+                        }
+                    });
+                };
+
+                const observer = new ResizeObserver(updateScale);
+                if (contentRef.current) observer.observe(contentRef.current);
+                
+                window.addEventListener('resize', updateScale);
+                updateScale();
+
+                return () => {
+                    window.removeEventListener('resize', updateScale);
+                    observer.disconnect();
+                };
+            }, [isPresenting]);
+
+            if (isPresenting) {
+                return (
+                    <div className="fixed inset-0 z-50 bg-black w-screen h-screen flex items-center justify-center overflow-hidden">
+                        <div ref={containerRef} className="absolute inset-0 flex items-center justify-center">
+                            <div 
+                                ref={contentRef}
+                                style={{ 
+                                    width: '1920px', 
+                                    height: 'auto', 
+                                    minHeight: '1080px',
+                                    transform: `scale(${scale})`, 
+                                    transformOrigin: 'center',
+                                }}
+                                className="bg-white overflow-hidden shadow-2xl flex flex-col"
+                            >
+                                {children}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="w-full h-full flex items-center justify-center bg-slate-200/50 relative overflow-hidden">
+                    <div ref={containerRef} className="absolute inset-0 flex items-center justify-center p-2">
+                        <div 
+                            ref={contentRef}
+                            style={{ 
+                                width: '1920px', 
+                                height: 'auto',
+                                minHeight: '1080px',
+                                transform: `scale(${scale})`, 
+                                transformOrigin: 'center',
+                                boxShadow: '0 20px 50px -12px rgba(0, 0, 0, 0.25)',
+                            }}
+                            className="bg-white rounded-xl overflow-hidden ring-1 ring-slate-900/5 flex-shrink-0 flex flex-col"
+                        >
+                            {children}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Preview Container (Scaled Simulation) ---
+        const PreviewContainer = ({ children }) => {
+            const containerRef = useRef(null);
+            const [scale, setScale] = useState(1);
+
+            useLayoutEffect(() => {
+                const updateScale = () => {
+                    setTimeout(() => {
+                        if (containerRef.current) {
+                            const parent = containerRef.current.parentElement;
+                            if (parent) {
+                                const availableWidth = parent.clientWidth;
+                                const availableHeight = parent.clientHeight;
+                                
+                                const baseWidth = 1920;
+                                const baseHeight = 1080;
+                                
+                                const scaleX = (availableWidth - 32) / baseWidth; 
+                                const scaleY = (availableHeight - 32) / baseHeight;
+                                
+                                let newScale = Math.min(scaleX, scaleY);
+                                if (newScale <= 0 || !isFinite(newScale)) newScale = 1;
+                                
+                                setScale(newScale);
+                            }
+                        }
+                    }, 50);
+                };
+
+                updateScale();
+                window.addEventListener('resize', updateScale);
+                return () => window.removeEventListener('resize', updateScale);
+            }, []);
+
+            return (
+                <div className="w-full h-full flex items-center justify-center bg-slate-200/50 relative overflow-hidden p-2">
+                    <div ref={containerRef} className="absolute flex items-center justify-center">
+                        <div 
+                            style={{ 
+                                width: '1920px', 
+                                height: '1080px', 
+                                transform: `scale(${scale})`, 
+                                transformOrigin: 'center',
+                                boxShadow: '0 20px 50px -12px rgba(0, 0, 0, 0.25)',
+                            }}
+                            className="bg-white rounded-xl overflow-hidden ring-1 ring-slate-900/5 flex-shrink-0"
+                        >
+                            {children}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Full Screen Overlay ---
+        const FullScreenOverlay = ({ children }) => {
+            return (
+                <div className="fixed inset-0 z-[9999] bg-white w-screen h-screen overflow-hidden">
+                    {children}
+                </div>
+            );
+        };
+
+        // --- Presentation Component ---
+        const PresentationView = ({
+            meetingInfo,
+            groups,
+            toggleCheck,
+            removeDepartment,
+            removeGroup,
+            qrCodes,
+            toggleFullScreen,
+            isPresenting,
+            showDocQr
+        }) => {
+            const totalItems = groups.reduce((acc, group) => acc + group.children.length, 0);
+            const checkedItems = groups.reduce((acc, group) => acc + group.children.filter(c => c.checked).length, 0);
+            const notCheckedItems = totalItems - checkedItems;
+            const progressPercentage = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0;
+
+            const handleNativeFullScreen = () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            };
+
+            const thaiDate = useMemo(() => {
+                if (!meetingInfo.date) return "-";
+                const date = new Date(meetingInfo.date);
+                return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+            }, [meetingInfo.date]);
+
+            const timeRange = useMemo(() => {
+                return `${meetingInfo.startTime || "..."} - ${meetingInfo.endTime || "..."} น.`;
+            }, [meetingInfo.startTime, meetingInfo.endTime]);
+
+            const gridStyle = useMemo(() => {
+                const count = groups.length;
+                if (count === 0) return {};
+                
+                let cols = 1;
+                if (count === 2) cols = 2;
+                else if (count <= 3) cols = 3; 
+                else if (count <= 4) cols = 4;
+                else if (count <= 6) cols = 3; 
+                else if (count <= 8) cols = 4;
+                else if (count <= 10) cols = 5;
+                else if (count <= 12) cols = 6;
+                else if (count <= 15) cols = 5;
+                else if (count <= 18) cols = 6;
+                else cols = 6; 
+
+                return {
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                    gap: '1rem',
+                    width: '100%',
+                    height: '100%',
+                    alignItems: 'start', 
+                    gridAutoRows: 'auto'
+                };
+            }, [groups.length]);
+
+            return (
+                <div className="w-full h-full flex flex-col font-sans relative bg-white">
+                    {/* Background */}
+                    <div className="absolute inset-0 bg-slate-50 z-0 h-full w-full fixed" />
+                    
+                    {/* Header */}
+                    <header className="relative z-20 shrink-0 bg-gradient-to-r from-pea-purple via-[#6A1B9A] to-[#4A148C] text-white shadow-lg h-[18%] flex flex-col justify-center">
+                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                        <div className="relative px-8 flex items-start gap-8 h-full items-center">
+                            {/* Logo: PEAC3 Style */}
+                            <div className="h-4/5 aspect-square bg-white rounded-xl flex flex-col items-center justify-center shadow-2xl shadow-black/30 shrink-0 border-4 border-pea-gold relative overflow-hidden group">
+                                <div className="absolute inset-0 bg-gradient-to-br from-white to-purple-50 opacity-50"></div>
+                                <div className="z-10 flex flex-col items-center">
+                                    <span className="text-pea-purple font-kanit font-extrabold text-5xl leading-none tracking-tighter drop-shadow-sm group-hover:scale-105 transition-transform duration-300">PEA</span>
+                                    <div className="flex items-center gap-1 mt-[-4px]">
+                                        <div className="h-1 w-8 bg-pea-gold rounded-full"></div>
+                                        <span className="text-pea-dark font-kanit font-bold text-xl tracking-widest">C3</span>
+                                        <div className="h-1 w-8 bg-pea-gold rounded-full"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 min-w-0 flex flex-col justify-center h-full gap-1">
+                                <div className="w-full">
+                                    <FitText 
+                                        text={meetingInfo.title} 
+                                        className="text-4xl md:text-5xl font-kanit font-bold leading-tight drop-shadow-lg tracking-tight"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="h-1.5 w-16 bg-pea-gold rounded-full shadow-md"></div>
+                                    <p className="text-purple-100 font-medium text-xl md:text-2xl truncate opacity-95">
+                                        {meetingInfo.subtitle || "รายละเอียดการประชุม"}
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-4 mt-2">
+                                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/20 shadow-sm">
+                                        <Calendar size={18} className="text-pea-gold" />
+                                        <span className="font-kanit font-medium text-base">{thaiDate}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/20 shadow-sm">
+                                        <Clock size={18} className="text-pea-gold" />
+                                        <span className="font-kanit font-medium text-base">{timeRange}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/20 shadow-sm">
+                                        <MapPin size={18} className="text-pea-gold" />
+                                        <span className="font-kanit font-medium text-base truncate max-w-[450px]">{meetingInfo.location || "ระบุสถานที่"}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Buttons Group - Top Right */}
+                        {isPresenting && (
+                            <div className="absolute top-6 right-6 flex gap-3 z-50">
+                                <button 
+                                    onClick={handleNativeFullScreen}
+                                    className="group flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full backdrop-blur-md border border-white/30 transition-all hover:scale-105 cursor-pointer"
+                                    title="ขยายเต็มจอ (Native)"
+                                >
+                                    <Maximize size={20} />
+                                </button>
+                                <button 
+                                    onClick={toggleFullScreen}
+                                    className="group flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full backdrop-blur-md border border-white/30 transition-all hover:scale-105 cursor-pointer"
+                                >
+                                    <X size={20} />
+                                    <span className="font-kanit font-bold">จบการนำเสนอ</span>
+                                </button>
+                            </div>
+                        )}
+                        <div className="absolute bottom-0 left-0 w-full h-1.5 bg-gradient-to-r from-pea-gold via-yellow-400 to-pea-gold shadow-md"></div>
+                    </header>
+
+                    {/* Progress Bar & Stats */}
+                    <div className="relative z-20 px-8 pt-4 pb-2 shrink-0 h-[8%] flex items-center">
+                        <div className="w-full flex items-center gap-6 bg-gradient-to-r from-purple-50/50 to-white/50 backdrop-blur-sm p-2 rounded-2xl border border-white/60 shadow-md">
+                            <div className="flex-1 h-5 bg-slate-200 rounded-full overflow-hidden shadow-inner ring-1 ring-black/5">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-pea-gold via-yellow-400 to-pea-gold shadow-[0_0_15px_rgba(253,185,19,0.6)] transition-all duration-1000 ease-out relative"
+                                    style={{ width: `${progressPercentage}%` }}
+                                >
+                                    <div className="absolute inset-0 bg-white/20 animate-pulse w-full h-full"></div>
+                                </div>
+                            </div>
+                            
+                            {/* Attendance Stats */}
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-green-100/80 border border-green-200 text-green-800 shadow-sm">
+                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                    <span className="text-sm font-kanit font-bold">เข้าร่วม: {checkedItems}</span>
+                                </div>
+                                <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-100/80 border border-slate-200 text-slate-600 shadow-sm">
+                                    <div className="w-2 h-2 rounded-full bg-slate-400"></div>
+                                    <span className="text-sm font-kanit font-bold">ยังไม่เข้าร่วม: {notCheckedItems}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-baseline gap-2 min-w-[80px] justify-end border-l border-slate-300 pl-4">
+                                <span className="text-3xl font-kanit font-bold text-pea-purple drop-shadow-sm">{progressPercentage}</span>
+                                <span className="text-lg font-bold text-slate-400">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <main className="relative z-10 flex-1 p-8 pt-2 pb-6 flex gap-6 h-[74%] overflow-hidden">
+                        {/* Cards Container */}
+                        <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-white/95 via-purple-50/20 to-white/95 backdrop-blur-xl rounded-[2rem] border border-white/70 shadow-2xl shadow-purple-900/5 p-6 relative overflow-hidden">
+                            {groups.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-slate-400 animate-pulse">
+                                    <Database size={80} className="text-pea-light mb-6"/>
+                                    <p className="text-3xl font-kanit text-slate-500">ยังไม่มีข้อมูลหน่วยงาน</p>
+                                    <p className="text-sm font-kanit text-slate-400 mt-2">กรุณาเพิ่มข้อมูลจากเมนูตั้งค่า</p>
+                                </div>
+                            ) : (
+                                <div style={gridStyle}>
+                                    {groups.map((group) => {
+                                        const groupCheckedCount = group.children.filter(c => c.checked).length;
+                                        const totalChildren = group.children.length;
+                                        const progress = totalChildren > 0 ? (groupCheckedCount / totalChildren) * 100 : 0;
+                                        const isAllChecked = groupCheckedCount === totalChildren && totalChildren > 0;
+                                        
+                                        const useTwoColumns = totalChildren > 6;
+
+                                        return (
+                                            <div key={group.id} className="min-w-0 h-auto">
+                                                <div className={`
+                                                    w-full relative rounded-3xl overflow-hidden border transition-all duration-300 group/card flex flex-col h-full
+                                                    ${isAllChecked 
+                                                        ? 'bg-gradient-to-br from-[#00897B] to-[#00695C] border-transparent shadow-xl shadow-teal-900/20' 
+                                                        : 'bg-white/80 border-purple-100 shadow-md hover:shadow-lg hover:border-pea-gold/50'}
+                                                `}>
+                                                    {!isAllChecked && (
+                                                        <div className="absolute top-0 left-0 h-1.5 w-full bg-slate-100 z-10">
+                                                            <div className="h-full bg-pea-gold transition-all duration-500" style={{ width: `${progress}%` }} />
+                                                        </div>
+                                                    )}
+
+                                                    <div className={`px-3 py-2 flex items-center justify-between shrink-0 ${isAllChecked ? 'text-white' : 'text-pea-purple'} border-b border-black/5`}>
+                                                        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                                                            <div className={`
+                                                                w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-sm
+                                                                ${isAllChecked ? 'bg-white/20 text-white' : 'bg-pea-light text-pea-purple'}
+                                                            `}>
+                                                                <FolderOpen size={16} strokeWidth={2.5} />
+                                                            </div>
+                                                            <h3 className="font-kanit font-bold text-base truncate leading-tight">{group.name}</h3>
+                                                        </div>
+                                                        <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isAllChecked ? 'bg-white/20 text-teal-50' : 'bg-slate-100 text-slate-500'}`}>
+                                                            {groupCheckedCount}/{totalChildren}
+                                                        </div>
+                                                        
+                                                        {!isPresenting && (
+                                                            <button onClick={(e) => { e.stopPropagation(); removeGroup(group.id); }} className="absolute top-2 right-2 p-1 text-red-300 hover:text-red-500 opacity-0 group-hover/card:opacity-100 transition-opacity z-20">
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Items Body - Improved Layout */}
+                                                    <div className="p-3 flex-1">
+                                                        <div className={`grid gap-x-3 gap-y-1.5 w-full content-start ${useTwoColumns ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                                            {group.children.map((child) => (
+                                                                <div 
+                                                                    key={child.id}
+                                                                    onClick={() => toggleCheck(group.id, child.id)}
+                                                                    className={`
+                                                                        cursor-pointer px-2 py-1 rounded-lg flex items-center gap-2 transition-all duration-200 border relative group/item w-full
+                                                                        ${child.checked 
+                                                                            ? (isAllChecked 
+                                                                                ? 'bg-white/20 border-transparent text-white' 
+                                                                                : 'bg-pea-purple border-transparent text-white shadow-md scale-[0.99]')
+                                                                            : 'bg-slate-50/50 border-transparent hover:bg-white hover:border-pea-gold text-slate-600 hover:shadow-sm'}
+                                                                    `}
+                                                                >
+                                                                    <div className={`
+                                                                        w-4 h-4 rounded-full flex items-center justify-center border-2 transition-all shrink-0
+                                                                        ${child.checked 
+                                                                            ? 'bg-white border-white' 
+                                                                            : 'bg-white border-slate-300 group-hover/item:border-pea-gold'}
+                                                                    `}>
+                                                                        {child.checked && (
+                                                                            <Check size={10} className={isAllChecked ? 'text-[#00695C]' : 'text-pea-purple'} strokeWidth={4} />
+                                                                        )}
+                                                                    </div>
+                                                                    <span className="text-sm font-semibold truncate leading-tight flex-1 text-left">{child.name}</span>
+                                                                    
+                                                                    {!isPresenting && (
+                                                                        <button onClick={(e) => { e.stopPropagation(); removeDepartment(group.id, child.id); }} className="text-slate-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 px-1 absolute right-1">
+                                                                            <Trash2 size={12} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right Sidebar (QR) */}
+                        <div className="w-[22%] max-w-[340px] shrink-0 flex flex-col gap-6 h-full">
+                            <div className="relative group flex-1 min-h-0 h-full">
+                                <div className="h-full rounded-[2rem] bg-gradient-to-br from-[#7A2F8D] to-[#4A148C] p-6 flex flex-col items-center justify-center text-center relative overflow-hidden shadow-2xl border border-white/20">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-12 -mt-12 blur-2xl group-hover:scale-125 transition-transform duration-700"></div>
+                                    <div className="relative z-10 text-white mb-4 w-full">
+                                        <div className="flex items-center justify-center gap-3 mb-1">
+                                            <Users size={28} className="text-pea-gold" />
+                                            <h3 className="font-kanit font-bold text-2xl tracking-wide">ลงทะเบียนประชุม/อบรม</h3>
+                                        </div>
+                                        <p className="text-sm opacity-90 font-light">สแกนเพื่อเข้าร่วมประชุม</p>
+                                    </div>
+                                    <div className="relative z-10 bg-white p-4 rounded-3xl shadow-inner w-full aspect-square max-w-[200px] flex items-center justify-center overflow-hidden">
+                                        {qrCodes.register ? (
+                                            <img src={qrCodes.register} alt="Register QR" className="w-full h-full object-cover rounded-2xl" />
+                                        ) : (
+                                            <div className="text-slate-300 flex flex-col items-center gap-2">
+                                                <QrCode size={80} />
+                                                <span className="text-sm font-medium">รอรูปภาพ</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {showDocQr && (
+                                <div className="relative group flex-1 min-h-0 h-full animate-fadeIn">
+                                    <div className="h-full rounded-[2rem] bg-gradient-to-br from-[#00897B] to-[#00695C] p-6 flex flex-col items-center justify-center text-center relative overflow-hidden shadow-2xl border border-white/20">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-12 -mt-12 blur-2xl group-hover:scale-125 transition-transform duration-700"></div>
+                                        <div className="relative z-10 text-white mb-4 w-full">
+                                            <div className="flex items-center justify-center gap-3 mb-1">
+                                                <FolderOpen size={28} className="text-white" />
+                                                <h3 className="font-kanit font-bold text-2xl tracking-wide">เอกสาร</h3>
+                                            </div>
+                                            <p className="text-sm opacity-90 font-light">ดาวน์โหลดไฟล์ประกอบ</p>
+                                        </div>
+                                        <div className="relative z-10 bg-white p-4 rounded-3xl shadow-inner w-full aspect-square max-w-[200px] flex items-center justify-center overflow-hidden">
+                                            {qrCodes.documents ? (
+                                                <img src={qrCodes.documents} alt="Doc QR" className="w-full h-full object-cover rounded-2xl" />
+                                            ) : (
+                                                <div className="text-slate-300 flex flex-col items-center gap-2">
+                                                    <QrCode size={80} />
+                                                    <span className="text-sm font-medium">รอรูปภาพ</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+
+                    {/* Footer Credits */}
+                    <div className="absolute bottom-4 left-0 w-full text-center pointer-events-none z-40">
+                         <div className="text-[10px] text-slate-400 font-light bg-white/40 backdrop-blur-md inline-block px-3 py-1 rounded-full shadow-sm">
+                            ผู้ออกแบบและพัฒนาระบบ โดย นายภูวดล กล่ำทอง ผบส.กบฟ.(ก3)
+                         </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Editor Panel ---
+        const EditorPanel = ({
+            meetingInfo,
+            setMeetingInfo,
+            groups,
+            setGroups,
+            regQrInputRef,
+            docQrInputRef,
+            toggleFullScreen,
+            showDocQr,
+            setShowDocQr
+        }) => {
+            const [activeTab, setActiveTab] = useState('import');
+            const [newDeptName, setNewDeptName] = useState("");
+            const [selectedGroupId, setSelectedGroupId] = useState("");
+            const [newGroupName, setNewGroupName] = useState("");
+            const [importTargetGroup, setImportTargetGroup] = useState("");
+            const [importTargetChild, setImportTargetChild] = useState("");
+
+            const handleImport = () => {
+                if (importTargetGroup === "all") {
+                    setGroups(JSON.parse(JSON.stringify(MASTER_DATA)));
+                } else if (importTargetGroup) {
+                    const masterGroup = MASTER_DATA.find(g => g.id === importTargetGroup);
+                    if (!masterGroup) return;
+
+                    let groupToAdd;
+                    if (importTargetChild) {
+                        const childToAdd = masterGroup.children.find(c => c.id === importTargetChild);
+                        if (childToAdd) {
+                            groupToAdd = { ...masterGroup, children: [childToAdd] };
+                        }
+                    } else {
+                        groupToAdd = masterGroup;
+                    }
+
+                    if (groupToAdd) {
+                        const existingGroupIndex = groups.findIndex(g => g.id === groupToAdd.id);
+                        if (existingGroupIndex >= 0) {
+                            const updatedGroups = [...groups];
+                            const existingGroup = updatedGroups[existingGroupIndex];
+                            const newChildren = groupToAdd.children.filter(
+                                newChild => !existingGroup.children.some(existingChild => existingChild.id === newChild.id)
+                            );
+                            if (newChildren.length > 0) {
+                                updatedGroups[existingGroupIndex] = {
+                                    ...existingGroup,
+                                    children: [...existingGroup.children, ...JSON.parse(JSON.stringify(newChildren))]
+                                };
+                                setGroups(updatedGroups);
+                            }
+                        } else {
+                            setGroups([...groups, JSON.parse(JSON.stringify(groupToAdd))]);
+                        }
+                    }
+                }
+                setImportTargetChild("");
+            };
+
+            const addGroup = (e) => {
+                e.preventDefault();
+                if (!newGroupName.trim()) return;
+                const newId = `g${Date.now()}`;
+                setGroups([...groups, { id: newId, name: newGroupName, children: [] }]);
+                setNewGroupName("");
+            };
+
+            const addItem = (e) => {
+                e.preventDefault();
+                if (!newDeptName.trim() || !selectedGroupId) return;
+                setGroups(prevGroups => prevGroups.map(group => {
+                    if (group.id !== selectedGroupId) return group;
+                    const newId = `c${Date.now()}`;
+                    return {
+                        ...group,
+                        children: [...group.children, { id: newId, name: newDeptName, checked: false }]
+                    };
+                }));
+                setNewDeptName("");
+            };
+
+            return (
+                <div className="bg-white border-r border-slate-100 w-full md:w-[350px] shrink-0 h-full overflow-y-auto p-4 flex flex-col gap-4 font-sans text-sm shadow-xl z-20">
+                    <div>
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="relative group shrink-0">
+                                <div className="absolute -inset-0.5 bg-gradient-to-r from-pea-gold to-pea-purple rounded-xl blur opacity-40 group-hover:opacity-75 transition duration-500"></div>
+                                <div className="relative w-11 h-11 bg-white rounded-xl flex items-center justify-center border border-slate-50 shadow-sm">
+                                    <Check size={28} className="text-pea-purple" strokeWidth={3} />
+                                </div>
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold font-kanit text-slate-800 tracking-tight flex items-center gap-1">
+                                    PEAC3 <span className="text-pea-purple">Check-in</span>
+                                </h2>
+                                <p className="text-slate-500 text-[10px] font-medium leading-tight">ระบบ Check-in หน่วยงานเข้าร่วมประชุม/อบรม</p>
+                            </div>
+                        </div>
+
+                        <div className="h-0.5 w-full bg-gradient-to-r from-pea-purple/20 via-pea-gold/30 to-transparent rounded-full mt-2 mb-4"></div>
+                    </div>
+
+                    <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
+                        <div className="flex gap-1 p-1 mb-2 bg-white rounded-lg border border-slate-100 shadow-sm">
+                            <button 
+                                onClick={() => setActiveTab('import')}
+                                className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'import' ? 'bg-pea-purple text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}
+                            >
+                                <Database size={12} /> นำเข้าข้อมูล
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab('manual')}
+                                className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'manual' ? 'bg-pea-purple text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}
+                            >
+                                <Edit3 size={12} /> เพิ่มเอง
+                            </button>
+                        </div>
+
+                        <div className="p-2">
+                            {activeTab === 'import' ? (
+                                <div className="space-y-2 font-prompt animate-fadeIn">
+                                    <div className="relative">
+                                        <select 
+                                            value={importTargetGroup}
+                                            onChange={(e) => {
+                                                setImportTargetGroup(e.target.value);
+                                                setImportTargetChild("");
+                                            }}
+                                            className="w-full p-2 pl-3 pr-8 appearance-none border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-1 focus:ring-pea-purple focus:border-pea-purple transition-all text-slate-600 font-medium"
+                                        >
+                                            <option value="">-- เลือกกลุ่มข้อมูล --</option>
+                                            <option value="all" className="font-bold text-pea-purple">⚡ เลือกทั้งหมด</option>
+                                            {MASTER_DATA.map(g => (
+                                                <option key={g.id} value={g.id}>{g.name}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90" size={14} />
+                                    </div>
+
+                                    {importTargetGroup && importTargetGroup !== "all" && (
+                                        <div className="relative animate-fadeIn">
+                                            <select 
+                                                value={importTargetChild}
+                                                onChange={(e) => setImportTargetChild(e.target.value)}
+                                                className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-1 focus:ring-pea-purple focus:border-pea-purple text-slate-600"
+                                            >
+                                                <option value="">-- ทั้งหมดในกลุ่ม (ค่าเริ่มต้น) --</option>
+                                                {MASTER_DATA.find(g => g.id === importTargetGroup)?.children.map(c => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    <button 
+                                        onClick={handleImport}
+                                        disabled={!importTargetGroup}
+                                        className="w-full bg-[#374151] hover:bg-pea-purple disabled:bg-slate-200 disabled:text-slate-400 text-white p-2 rounded-lg transition-all flex justify-center items-center gap-2 font-medium shadow-sm"
+                                    >
+                                        <Plus size={16} /> ยืนยันนำเข้า
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-3 font-prompt animate-fadeIn">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 flex items-center gap-1"><FolderOpen size={10}/> สร้างกลุ่มใหม่</label>
+                                        <form onSubmit={addGroup} className="flex gap-1.5">
+                                            <input 
+                                                type="text" 
+                                                value={newGroupName}
+                                                onChange={(e) => setNewGroupName(e.target.value)}
+                                                placeholder="ชื่อกลุ่ม..."
+                                                className="flex-1 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-pea-purple"
+                                            />
+                                            <button type="submit" className="bg-pea-purple text-white p-2 rounded-lg hover:bg-pea-dark">
+                                                <Plus size={16} />
+                                            </button>
+                                        </form>
+                                    </div>
+                                    <div className="h-px bg-slate-200 my-1"></div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 flex items-center gap-1"><List size={10}/> เพิ่มรายชื่อย่อย</label>
+                                        <form onSubmit={addItem} className="space-y-1.5">
+                                            <select 
+                                                value={selectedGroupId}
+                                                onChange={(e) => setSelectedGroupId(e.target.value)}
+                                                className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:border-pea-purple"
+                                            >
+                                                <option value="" disabled>เลือกกลุ่ม...</option>
+                                                {groups.map(g => (
+                                                    <option key={g.id} value={g.id}>{g.name}</option>
+                                                ))}
+                                            </select>
+                                            <div className="flex gap-1.5">
+                                                <input 
+                                                    type="text" 
+                                                    value={newDeptName}
+                                                    onChange={(e) => setNewDeptName(e.target.value)}
+                                                    placeholder="ชื่อหน่วยงาน..."
+                                                    className="flex-1 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-pea-purple"
+                                                />
+                                                <button type="submit" className="bg-pea-purple text-white p-2 rounded-lg hover:bg-pea-dark">
+                                                    <Plus size={16} />
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-4 space-y-3 font-prompt">
+                        <h3 className="font-bold font-kanit text-pea-dark flex items-center gap-2 text-sm">
+                            <LayoutTemplate size={16} className="text-pea-gold" />
+                            รายละเอียดการประชุม
+                        </h3>
+                        <div className="space-y-2">
+                            <div className="space-y-0.5">
+                                <label className="text-[10px] text-slate-400 font-bold uppercase">Topic</label>
+                                <input 
+                                    type="text" 
+                                    value={meetingInfo.title}
+                                    onChange={(e) => setMeetingInfo(prev => ({...prev, title: e.target.value}))}
+                                    className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-pea-purple transition-colors bg-slate-50 focus:bg-white"
+                                    placeholder="หัวข้อการประชุม"
+                                />
+                            </div>
+                            <div className="space-y-0.5">
+                                <label className="text-[10px] text-slate-400 font-bold uppercase">Subtitle</label>
+                                <input 
+                                    type="text" 
+                                    value={meetingInfo.subtitle}
+                                    onChange={(e) => setMeetingInfo(prev => ({...prev, subtitle: e.target.value}))}
+                                    className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-pea-purple transition-colors bg-slate-50 focus:bg-white"
+                                    placeholder="หน่วยงานเจ้าของเรื่อง"
+                                />
+                            </div>
+                            <div className="space-y-0.5">
+                                <label className="text-[10px] text-slate-400 font-bold uppercase">Date</label>
+                                <input 
+                                    type="date" 
+                                    value={meetingInfo.date}
+                                    onChange={(e) => setMeetingInfo(prev => ({...prev, date: e.target.value}))}
+                                    className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-pea-purple bg-slate-50 focus:bg-white text-slate-600"
+                                />
+                            </div>
+                            <div className="space-y-0.5">
+                                <label className="text-[10px] text-slate-400 font-bold uppercase">Time Range</label>
+                                <div className="flex gap-2 items-center">
+                                    <select
+                                        value={meetingInfo.startTime}
+                                        onChange={(e) => setMeetingInfo(prev => ({...prev, startTime: e.target.value}))}
+                                        className="flex-1 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-pea-purple bg-slate-50 focus:bg-white text-slate-600"
+                                    >
+                                        {TIME_OPTIONS.map(time => (
+                                            <option key={`start-${time}`} value={time}>{time}</option>
+                                        ))}
+                                    </select>
+                                    <span className="text-slate-400 text-xs">ถึง</span>
+                                    <select
+                                        value={meetingInfo.endTime}
+                                        onChange={(e) => setMeetingInfo(prev => ({...prev, endTime: e.target.value}))}
+                                        className="flex-1 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-pea-purple bg-slate-50 focus:bg-white text-slate-600"
+                                    >
+                                        {TIME_OPTIONS.map(time => (
+                                            <option key={`end-${time}`} value={time}>{time}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="space-y-0.5">
+                                <label className="text-[10px] text-slate-400 font-bold uppercase">Location</label>
+                                <textarea 
+                                    rows="2"
+                                    value={meetingInfo.location}
+                                    onChange={(e) => setMeetingInfo(prev => ({...prev, location: e.target.value}))}
+                                    className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-pea-purple resize-none bg-slate-50 focus:bg-white"
+                                    placeholder="สถานที่"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-4 font-prompt">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-bold font-kanit text-pea-dark flex items-center gap-2 text-sm">
+                                <QrCode size={16} className="text-pea-gold" /> 
+                                อัปโหลด QR Code
+                            </h3>
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${showDocQr ? 'bg-pea-purple border-pea-purple' : 'bg-white border-slate-300'}`}>
+                                    {showDocQr && <Check size={10} className="text-white" strokeWidth={3} />}
+                                </div>
+                                <input type="checkbox" className="hidden" checked={showDocQr} onChange={() => setShowDocQr(!showDocQr)} />
+                                <span className="text-[10px] text-slate-500 font-bold">แนบ QR เอกสาร</span>
+                            </label>
+                        </div>
+                        
+                        <div className={`grid gap-2 transition-all ${showDocQr ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                            <button 
+                                onClick={() => regQrInputRef.current && regQrInputRef.current.click()}
+                                className="p-3 border border-dashed border-purple-200 bg-purple-50/50 rounded-lg text-pea-purple text-xs hover:bg-purple-100 transition-colors flex flex-col items-center gap-1 h-20 justify-center"
+                            >
+                                <Upload size={16} />
+                                ลงทะเบียนประชุม/อบรม
+                            </button>
+                            
+                            {showDocQr && (
+                                <button 
+                                    onClick={() => docQrInputRef.current && docQrInputRef.current.click()}
+                                    className="p-3 border border-dashed border-slate-200 bg-slate-50/50 rounded-lg text-slate-500 text-xs hover:bg-slate-100 transition-colors flex flex-col items-center gap-1 h-20 justify-center animate-fadeIn"
+                                >
+                                    <Upload size={16} />
+                                    เอกสารแนบ
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="mt-auto pt-4 space-y-4">
+                        <button
+                            onClick={toggleFullScreen}
+                            className="w-full relative group overflow-hidden bg-gradient-to-r from-[#7A2F8D] to-[#4A148C] text-white p-4 rounded-2xl shadow-lg shadow-purple-200 hover:shadow-2xl hover:shadow-purple-400/50 transition-all duration-300 transform hover:-translate-y-1 active:scale-95"
+                        >
+                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                            
+                            <div className="relative flex items-center justify-center gap-4">
+                                <div className="bg-white/20 p-2.5 rounded-xl backdrop-blur-sm shadow-inner group-hover:rotate-12 transition-transform duration-300 border border-white/10">
+                                    <Maximize size={24} strokeWidth={3} className="text-pea-gold drop-shadow-sm" />
+                                </div>
+                                <div className="flex flex-col items-start">
+                                    <span className="font-kanit font-bold text-lg leading-none tracking-wide drop-shadow-md">โหมดนำเสนอ</span>
+                                    <span className="text-[11px] text-purple-200 font-medium mt-1">แสดงผลเต็มหน้าจอ</span>
+                                </div>
+                            </div>
+                        </button>
+
+                        <div className="text-[10px] text-slate-400 font-light text-center border-t border-slate-100 pt-3">
+                            ผู้ออกแบบและพัฒนาระบบ โดย นายภูวดล กล่ำทอง ผบส.กบฟ.(ก3)
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [meetingInfo, setMeetingInfo] = useState({
+                title: "",
+                subtitle: "",
+                date: new Date().toISOString().split('T')[0],
+                startTime: "09:00",
+                endTime: "12:00",
+                location: ""
+            });
+
+            // Initialize with empty array for fresh start
+            const [groups, setGroups] = useState([]);
+            const [qrCodes, setQrCodes] = useState({ register: null, documents: null });
+            const [isPresenting, setIsPresenting] = useState(false);
+            const [showDocQr, setShowDocQr] = useState(false);
+            
+            const regQrInputRef = useRef(null);
+            const docQrInputRef = useRef(null);
+
+            const toggleFullScreen = () => {
+                setIsPresenting(!isPresenting);
+            };
+
+            useEffect(() => {
+                const handleEsc = (event) => {
+                    if (event.key === "Escape") {
+                        setIsPresenting(false);
+                    }
+                };
+                window.addEventListener("keydown", handleEsc);
+                return () => {
+                    window.removeEventListener("keydown", handleEsc);
+                };
+            }, []);
+
+            const toggleCheck = (groupId, childId) => {
+                setGroups(prev => prev.map(g => g.id === groupId ? {
+                    ...g, children: g.children.map(c => c.id === childId ? { ...c, checked: !c.checked } : c)
+                } : g));
+            };
+            
+            const removeDepartment = (groupId, childId) => {
+                setGroups(prev => prev.map(g => g.id === groupId ? {
+                    ...g, children: g.children.filter(c => c.id !== childId)
+                } : g).filter(g => g.children.length > 0));
+            };
+
+            const removeGroup = (groupId) => {
+                if (window.confirm('ยืนยันลบกลุ่มนี้?')) {
+                    setGroups(prev => prev.filter(g => g.id !== groupId));
+                }
+            };
+
+            const handleImageUpload = (e, type) => {
+                const file = e.target.files[0];
+                if (file) setQrCodes(prev => ({ ...prev, [type]: URL.createObjectURL(file) }));
+            };
+
+            return (
+                <div className={`h-screen w-full font-sans flex overflow-hidden transition-colors duration-500 bg-slate-100`}>
+                    <input type="file" ref={regQrInputRef} onChange={(e) => handleImageUpload(e, 'register')} className="hidden" accept="image/*" />
+                    <input type="file" ref={docQrInputRef} onChange={(e) => handleImageUpload(e, 'documents')} className="hidden" accept="image/*" />
+
+                    <div className={`flex-shrink-0 h-full transition-all duration-500 ease-in-out z-50 ml-0 opacity-100`}>
+                        <EditorPanel 
+                            meetingInfo={meetingInfo} setMeetingInfo={setMeetingInfo}
+                            groups={groups} setGroups={setGroups}
+                            regQrInputRef={regQrInputRef} docQrInputRef={docQrInputRef}
+                            toggleFullScreen={toggleFullScreen}
+                            showDocQr={showDocQr} setShowDocQr={setShowDocQr}
+                        />
+                    </div>
+
+                    <div className={`flex-1 h-full min-w-0 flex items-center justify-center transition-all duration-500 p-4`}>
+                        {/* Always use Simulated Preview on Main Screen */}
+                        <PreviewContainer>
+                             <PresentationView 
+                                meetingInfo={meetingInfo} groups={groups}
+                                toggleCheck={toggleCheck} removeDepartment={removeDepartment}
+                                removeGroup={removeGroup}
+                                qrCodes={qrCodes} toggleFullScreen={toggleFullScreen}
+                                isPresenting={false} // Only used for styling inside, not for mode switching
+                                showDocQr={showDocQr}
+                            />
+                        </PreviewContainer>
+                    </div>
+
+                    {/* Actual Full Screen Overlay */}
+                    {isPresenting && (
+                        <FullScreenOverlay>
+                             <PresentationView 
+                                meetingInfo={meetingInfo} groups={groups}
+                                toggleCheck={toggleCheck} removeDepartment={removeDepartment}
+                                removeGroup={removeGroup}
+                                qrCodes={qrCodes} toggleFullScreen={toggleFullScreen}
+                                isPresenting={true}
+                                showDocQr={showDocQr}
+                            />
+                        </FullScreenOverlay>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
