@@ -728,12 +728,13 @@
                                         </div>
                                         <p className="text-sm opacity-90 font-light">สแกนเพื่อเข้าร่วมประชุม</p>
                                     </div>
-                                    <div className="relative z-10 bg-white p-4 rounded-3xl shadow-inner w-full aspect-square max-w-[200px] flex items-center justify-center overflow-hidden">
+                                    {/* Adjusted QR Container: Increased max-width and forced 1:1 aspect ratio */}
+                                    <div className="relative z-10 bg-white p-3 rounded-3xl shadow-inner w-full max-w-[280px] aspect-square flex items-center justify-center overflow-hidden">
                                         {qrCodes.register ? (
-                                            <img src={qrCodes.register} alt="Register QR" className="w-full h-full object-cover rounded-2xl" />
+                                            <img src={qrCodes.register} alt="Register QR" className="w-full h-full object-cover rounded-2xl aspect-square" />
                                         ) : (
                                             <div className="text-slate-300 flex flex-col items-center gap-2">
-                                                <QrCode size={80} />
+                                                <QrCode size={100} />
                                                 <span className="text-sm font-medium">รอรูปภาพ</span>
                                             </div>
                                         )}
@@ -752,12 +753,13 @@
                                             </div>
                                             <p className="text-sm opacity-90 font-light">ดาวน์โหลดไฟล์ประกอบ</p>
                                         </div>
-                                        <div className="relative z-10 bg-white p-4 rounded-3xl shadow-inner w-full aspect-square max-w-[200px] flex items-center justify-center overflow-hidden">
+                                        {/* Adjusted QR Container: Increased max-width and forced 1:1 aspect ratio */}
+                                        <div className="relative z-10 bg-white p-3 rounded-3xl shadow-inner w-full max-w-[280px] aspect-square flex items-center justify-center overflow-hidden">
                                             {qrCodes.documents ? (
-                                                <img src={qrCodes.documents} alt="Doc QR" className="w-full h-full object-cover rounded-2xl" />
+                                                <img src={qrCodes.documents} alt="Doc QR" className="w-full h-full object-cover rounded-2xl aspect-square" />
                                             ) : (
                                                 <div className="text-slate-300 flex flex-col items-center gap-2">
-                                                    <QrCode size={80} />
+                                                    <QrCode size={100} />
                                                     <span className="text-sm font-medium">รอรูปภาพ</span>
                                                 </div>
                                             )}
